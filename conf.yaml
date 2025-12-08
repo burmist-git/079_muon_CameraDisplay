@@ -1,0 +1,15 @@
+# Input file with the recorded single muon throughput.
+file:
+  - "./data/muon-_0deg_0deg_run000003___cta-prod6-2147m-Paranal-lst-dark-ref-degraded-0.8.h5"
+#  - "./data/muon-_0deg_0deg_run000001___cta-prod6-2147m-Paranal-mst-nc-dark-ref-degraded-0.8.h5"
+#  - "./data/muon-_0deg_0deg_run000002___cta-prod6-2147m-Paranal-mst-fc-dark-ref-degraded-0.8.h5"
+#  - "./data/muon-_0deg_0deg_run000005___cta-prod6-2147m-Paranal-sst-dark-ref-degraded-0.8.h5"
+camera_type:
+  - LSTCam    #LST 
+#  - NectarCam #MST NC 
+#  - FlashCam  #MST FC 
+#  - SST       #SST CHEC
+#SST-1M    #SST-1M DigiCam
+# single frame is : 2 x 3 events
+nframes:
+  1
