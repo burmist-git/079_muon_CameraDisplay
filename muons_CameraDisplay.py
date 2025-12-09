@@ -42,6 +42,90 @@ import math
 
 from ctapipe.visualization import CameraDisplay
 
+from matplotlib.colors import LogNorm
+
+
+def get_ring_width_and_error(data, cut_val_min = 0.0, cut_val_max = 0.1):
+    """get ring width"""
+
+    data_clean = data[~np.isnan(data)]
+    data_clean_cut = data_clean[(data_clean > cut_val_min) & (data_clean < cut_val_max)]
+
+    nmeas = len(data_clean_cut)
+    
+    if nmeas>0 :
+        return np.nanmean(data_clean_cut), np.nanstd(data_clean_cut) / np.sqrt(nmeas), nmeas, np.max(data_clean_cut)
+
+
+    return 0, 0
+    
+    
+def build_ring_width_vs_ring_rad( df, bins):
+    """Build ring width vs ring rad"""
+
+    bins_r = bins[1:]
+    bins_l = bins[:-1]
+
+    r_width = []
+    
+    for i in np.arange(len(bins_r)):
+        r_width.append(
+            get_ring_width_and_error(
+                df[
+                    (df['muonring_radius'] >= bins_l[i]) &
+                    (df['muonring_radius'] < bins_r[i])
+                ]['muonring_width'].values,
+            )
+        )
+
+
+    bin_w_two = (bins_r - bins_l) / 2
+    bin_c = bins_l + bin_w_two
+    r_width=np.array(r_width)
+
+    #print(bins)
+    print(r_width)
+    print(bins_r)
+    print(bins_l)
+    #print(r_width[:,0])
+
+    return [bin_c, r_width[:,0], bin_w_two, r_width[:,1]]    
+
+
+def build_profile( df, bins, var_x, var_y, cut_val_min = 0.0, cut_val_max = 0.1):
+    """build profile"""
+
+    bins_r = bins[1:]
+    bins_l = bins[:-1]
+
+    r_width = []
+    
+    for i in np.arange(len(bins_r)):
+        r_width.append(
+            get_ring_width_and_error(
+                df[
+                    (df[var_x] >= bins_l[i]) &
+                    (df[var_x] < bins_r[i])
+                ][var_y].values,
+                cut_val_min,
+                cut_val_max,
+            )
+        )
+
+
+    bin_w_two = (bins_r - bins_l) / 2
+    bin_c = bins_l + bin_w_two
+    r_width=np.array(r_width)
+
+    #print(bins)
+    #print(r_width)
+    #print(bins_r)
+    #print(bins_l)
+    #print(r_width[:,0])
+
+    return [bin_c, r_width[:,0], bin_w_two, r_width[:,1]]    
+
+
 
 def print_conf_to_canvas(conf, fig, y_pos = 1.0, y_step=0.1):
     """Print configuration to figure (not used)"""
@@ -147,6 +231,12 @@ def analyze(conf, subarr):
     muonefficiency_impact_x_all=h5file.root.dl1.event.telescope.muon.tel_001[:]['muonefficiency_impact_x'][:]
     muonefficiency_impact_y_all=h5file.root.dl1.event.telescope.muon.tel_001[:]['muonefficiency_impact_y'][:]
 
+    true_ring_intensity_all=np.sum(h5file.root.simulation.event.telescope.images.tel_001[:]['true_image'][:],axis=1)
+
+    
+    true_energy_all=h5file.root.simulation.event.subarray.shower[:]['true_energy'][:] 
+            
+    
     true_core_x_all=h5file.root.simulation.event.subarray.shower[:]['true_core_x'][:] 
     true_core_y_all=h5file.root.simulation.event.subarray.shower[:]['true_core_y'][:]
     
@@ -170,6 +260,7 @@ def analyze(conf, subarr):
             'muonring_center_fov_lon': muonring_center_fov_lon_all,
             'muonring_center_fov_lat': muonring_center_fov_lat_all,
             'muonparameters_ring_intensity': muonparameters_ring_intensity_all,
+            'true_ring_intensity': true_ring_intensity_all,
             'muonparameters_n_pixels_in_ring': muonparameters_n_pixels_in_ring_all,
             'muonparameters_radial_std_dev': muonparameters_radial_std_dev_all,
             'muonparameters_skewness': muonparameters_skewness_all,
@@ -181,6 +272,7 @@ def analyze(conf, subarr):
             'muonefficiency_impact_y': muonefficiency_impact_y_all,
             'true_core_x': true_core_x_all,
             'true_core_y': true_core_y_all,
+            'true_energy': true_energy_all,
             'impact_resolution_x': impact_resolution_x,
             'impact_resolution_y': impact_resolution_y,
         }
@@ -359,6 +451,107 @@ def analyze(conf, subarr):
         plt.close()
 
 
+
+
+
+        #
+        fig, axes = plt.subplots(1, 2, figsize=(20, 10))
+        plt.tight_layout()
+        axes[0].hist2d(
+            df['true_core_x'].values,
+            -df['muonefficiency_impact_y'].values,           
+            bins=[
+                np.linspace( -11, 11, 100), 
+                np.linspace( -11, 11, 100),
+            ],
+            cmap='plasma'
+        )
+        #axes[0].legend(fontsize=13)
+        axes[1].hist2d(
+            df['true_core_y'].values,
+            -df['muonefficiency_impact_x'].values,           
+            bins=[
+                np.linspace( -11, 11, 100), 
+                np.linspace( -11, 11, 100),
+            ],
+            cmap='plasma'
+        )
+        #axes[1].legend(fontsize=13) 
+        pdf.savefig()
+        plt.close()
+
+
+
+        #
+        fig, axes = plt.subplots(1, 1, figsize=(10, 10))
+        #plt.tight_layout()
+        axes.hist2d(
+            -df['muonefficiency_impact_y'].values,
+            -df['muonefficiency_impact_x'].values,           
+            bins=[
+                np.linspace( -11, 11, 100), 
+                np.linspace( -11, 11, 100),
+            ],
+            norm=LogNorm(),
+            cmap='plasma',
+        )
+        plt.xlabel('muonefficiency_impact_x', fontsize=15)
+        plt.ylabel('muonefficiency_impact_y', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+
+        pdf.savefig()
+        plt.close()
+
+
+
+        #
+        plt.figure(figsize=(15, 10))
+        plt.hist(
+            df['muonparameters_ring_intensity'].values - df['true_ring_intensity'].values,
+            bins=np.linspace(-200,
+                             200,
+                             200),
+            alpha=0.3,
+            hatch='',
+            edgecolor='black',
+            label='energy',
+        )
+        #plt.ylim(0,200)
+        plt.title("ring intensity - true_ring_intensity", fontsize=20)
+        plt.legend(fontsize=15)
+        plt.xlabel('ring intensity - true_ring_intensity', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+        pdf.savefig()
+        plt.close()
+
+
+
+        #
+        plt.figure(figsize=(15, 10))
+        plt.hist2d(
+            df['r_reco'].values,
+            df['muonparameters_ring_intensity'].values - df['true_ring_intensity'].values,
+            bins=[
+                np.linspace( 0.0, 10, 100), 
+                np.linspace( -200.0, 200.0, 100),
+            ],
+            cmap='plasma',
+            #label='ring intensity - true_ring_intensity vs true r',
+        )
+        #plt.ylim(0,200)
+        plt.title("ring intensity - true_ring_intensity vs true r", fontsize=20)
+        #plt.legend(fontsize=15)
+        plt.xlabel('ring intensity - true_ring_intensity', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+        pdf.savefig()
+        plt.close()
+
+
+
+        
         
         #
         plt.figure(figsize=(15, 10))
@@ -636,8 +829,8 @@ def analyze(conf, subarr):
         )
         #plt.legend(fontsize=13)
         plt.title("clean", fontsize=15)
-        plt.xlabel('muonring width, deg.', fontsize=15)
-        plt.ylabel('muonring radius, deg.', fontsize=15)
+        plt.ylabel('muonring width, deg.', fontsize=15)
+        plt.xlabel('muonring radius, deg.', fontsize=15)
         plt.xticks(fontsize=15)
         plt.yticks(fontsize=15)
         pdf.savefig()
@@ -659,14 +852,149 @@ def analyze(conf, subarr):
         )
         plt.title("all", fontsize=15)
         #plt.legend(fontsize=15)
-        plt.xlabel('muonring width, deg.', fontsize=15)
-        plt.ylabel('muonring radius, deg.', fontsize=15)
+        plt.ylabel('muonring width, deg.', fontsize=15)
+        plt.xlabel('muonring radius, deg.', fontsize=15)
         plt.xticks(fontsize=15)
         plt.yticks(fontsize=15)
         pdf.savefig()
         plt.close()
 
 
+        bins_muonring_radius=np.unique(
+            np.concatenate(
+                (
+                    np.linspace(0.8,
+                                0.9,
+                                10),
+                   np.linspace(0.9,
+                               1.1,
+                               20),
+                   np.linspace(1.1,
+                               1.2,
+                               20),
+                   np.linspace(1.2,
+                               1.3,
+                               10),
+                ),
+                axis=0
+            )
+        )
+        
+        #
+        plt.figure(figsize=(15, 10))
+        plt.hist(
+            df['muonring_radius'].values,
+            bins=bins_muonring_radius,
+            alpha=0.3,
+            hatch='',
+            edgecolor='black',
+            label='muonring_radius',
+        )
+        #plt.ylim(0,200)
+        plt.title('muonring_radius', fontsize=20)
+        plt.legend(fontsize=15)
+        plt.xlabel('muonring_radius', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+        pdf.savefig()
+        plt.close()
+        
+        
+        
+        plt.figure(figsize=(15, 10))
+        plt.hist(
+            df[
+                (df['muonring_radius'] >= 0.95517241) &
+                (df['muonring_radius'] < 0.97241379)
+            ]['muonring_width'].values,
+            bins=np.linspace( 0.0, 0.15, 50),
+            alpha=0.3,
+            hatch='',
+            edgecolor='black',
+            label='muonring width',
+        )
+        #plt.ylim(0,200)
+        plt.title('muonring width', fontsize=20)
+        plt.legend(fontsize=15)
+        plt.xlabel('muonring width', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+        pdf.savefig()
+        plt.close()
+
+
+        #ring_width_vs_ring_rad = build_ring_width_vs_ring_rad(df, bins_muonring_radius)
+        ring_width_vs_ring_rad = build_profile( df, bins_muonring_radius, 'muonring_radius', 'muonring_width')
+        
+        plt.figure(figsize=(15, 10))
+        plt.errorbar(
+            x=ring_width_vs_ring_rad[0],
+            y=ring_width_vs_ring_rad[1],
+            xerr=ring_width_vs_ring_rad[2],
+            yerr=ring_width_vs_ring_rad[3],
+            fmt='o',
+            capsize=4
+        )
+        plt.ylim(0,0.1)
+        plt.xlim(0.8,1.3)        
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title("Plot with X and Y Error Bars")
+        pdf.savefig()
+        plt.close()
+
+
+
+        ring_ring_intensity_vs_ring_rad = build_profile( df, bins_muonring_radius, 'muonring_radius', 'muonparameters_ring_intensity', 0.0, 5000)
+        
+        plt.figure(figsize=(15, 10))
+        plt.errorbar(
+            x=ring_ring_intensity_vs_ring_rad[0],
+            y=ring_ring_intensity_vs_ring_rad[1],
+            xerr=ring_ring_intensity_vs_ring_rad[2],
+            yerr=ring_ring_intensity_vs_ring_rad[3],
+            fmt='o',
+            capsize=4
+        )
+        #plt.ylim(0,0.1)
+        plt.xlim(0.8,1.3)        
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.title("Plot with X and Y Error Bars")
+        pdf.savefig()
+        plt.close()
+
+
+        
+        #      slope, intercept = np.polyfit(bin_centers, df['mean'] / bin_centers, 1)
+        #      y_fit = slope * bin_centers + intercept
+        #      plt.plot(bin_centers, y_fit, color=color_dict[name], linestyle=ls_dict[name], label=f'{name} fit')
+
+
+
+        #
+        plt.figure(figsize=(10, 10))
+        plt.hist2d(
+            df['true_energy'].values,
+            df['muonring_radius'].values,           
+            bins=[
+                np.linspace(0.0, 0.05, 100), 
+                np.linspace(0.8, 1.3, 100),
+            ],
+            #vmin=0,
+            #vmax=30,
+            cmap='plasma',
+            label='all',
+        )
+        #plt.title("all", fontsize=15)
+        #plt.legend(fontsize=15)
+        plt.xlabel('muonring_radius, deg.', fontsize=15)
+        plt.ylabel('muonparameters_ring_intensity', fontsize=15)
+        plt.xticks(fontsize=15)
+        plt.yticks(fontsize=15)
+        pdf.savefig()
+        plt.close()
+        
 
         #
         plt.figure(figsize=(10, 10))
