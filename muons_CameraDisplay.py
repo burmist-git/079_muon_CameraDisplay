@@ -81,6 +81,9 @@ def build_ring_width_vs_ring_rad( df, bins):
 
     bin_w_two = (bins_r - bins_l) / 2
     bin_c = bins_l + bin_w_two
+
+    #print(r_width)
+
     r_width=np.array(r_width)
 
     #print(bins)
@@ -115,8 +118,16 @@ def build_profile( df, bins, var_x, var_y, cut_val_min = 0.0, cut_val_max = 0.1)
 
     bin_w_two = (bins_r - bins_l) / 2
     bin_c = bins_l + bin_w_two
-    r_width=np.array(r_width)
 
+    #print(r_width)
+    
+    #
+    #
+    if len(r_width)>0 :
+        r_width=np.array(r_width)
+    else:
+        r_width=np.ones(len(bin_c),2)
+        
     #print(bins)
     #print(r_width)
     #print(bins_r)
@@ -863,9 +874,9 @@ def analyze(conf, subarr):
         bins_muonring_radius=np.unique(
             np.concatenate(
                 (
-                    np.linspace(0.8,
-                                0.9,
-                                10),
+                    #np.linspace(0.8,
+                    #            0.9,
+                    #            10),
                    np.linspace(0.9,
                                1.1,
                                20),
